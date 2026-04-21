@@ -325,19 +325,23 @@ def compute_overview(df: pd.DataFrame) -> dict[str, float]:
             "hours_sold": 0.0,
         }
 
-    bookings = float(len(df))
-    revenue = float(pd.to_numeric(df.get("revenue", 0.0), errors="coerce").fillna(0.0).sum())
-    profit = float(pd.to_numeric(df.get("profit", 0.0), errors="coerce").fillna(0.0).sum())
-    due = float(pd.to_numeric(df.get("due", 0.0), errors="coerce").fillna(0.0).sum())
-    discount = float(pd.to_numeric(df.get("discount", 0.0), errors="coerce").fillna(0.0).sum())
+    def _num_series(col: str) -> pd.Series:
+        s = df[col] if col in df.columns else pd.Series(0.0, index=df.index)
+        return pd.to_numeric(s, errors="coerce").fillna(0.0)
 
-    list_price_sum = float(pd.to_numeric(df.get("list_price", np.nan), errors="coerce").fillna(0.0).sum())
+    bookings = float(len(df))
+    revenue = float(_num_series("revenue").sum())
+    profit = float(_num_series("profit").sum())
+    due = float(_num_series("due").sum())
+    discount = float(_num_series("discount").sum())
+
+    list_price_sum = float(_num_series("list_price").sum())
     discount_rate = float(discount / list_price_sum) if list_price_sum > 0 else (float(discount / revenue) if revenue > 0 else 0.0)
     due_rate = float(due / revenue) if revenue > 0 else 0.0
 
     avg_rev = float(revenue / bookings) if bookings > 0 else 0.0
     avg_profit = float(profit / bookings) if bookings > 0 else 0.0
-    hours_sold = float(pd.to_numeric(df.get("duration_hours", 0.0), errors="coerce").fillna(0.0).sum())
+    hours_sold = float(_num_series("duration_hours").sum())
 
     return {
         "bookings": bookings,
