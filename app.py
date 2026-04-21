@@ -38,7 +38,12 @@ def main() -> None:
             df_raw, data_path = load_data_from_upload(up.name, up.getvalue())
         except Exception as e:  # noqa: BLE001
             df_raw, data_path = pd.DataFrame(), None
-            st.error(f"Không đọc được file bạn tải lên: `{type(e).__name__}: {e}`")
+            st.error(
+                "Không đọc được file bạn tải lên.\n\n"
+                f"- Chi tiết: `{type(e).__name__}: {e}`\n"
+                "- Gợi ý: hãy đảm bảo file là `.xlsx` chuẩn (không password), thử **Save As** lại từ Excel, "
+                "hoặc thử export lại nếu lấy từ Google Sheets."
+            )
     else:
         df_raw, data_path = load_data()
 

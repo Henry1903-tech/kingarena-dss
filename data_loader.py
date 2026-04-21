@@ -226,9 +226,22 @@ def _read_excel_any(source, label: str) -> pd.DataFrame:
     last_err: Exception | None = None
     for skip in (2, 1, 0):
         try:
-            df = pd.read_excel(source, engine="openpyxl", skiprows=skip)
-            if df is None or df.empty:
-                continue
+            # Read all sheets to be robust with files that have an empty first sheet
+            sheets = pd.read_excel(source, engine="openpyxl", skiprows=skip, sheet_name=None)
+            if isinstance(sheets, dict):
+                # pick the first non-empty sheet
+                df = None
+                for _, sdf in sheets.items():
+                    if sdf is not None and not sdf.empty:
+                        df = sdf
+                        break
+                if df is None:
+                    continue
+            else:
+                df = sheets
+                if df is None or df.empty:
+                    continue
+
             df = _standardize_columns(df)
             if "booking_date" in df.columns:
                 df["booking_date"] = pd.to_datetime(df["booking_date"], errors="coerce")
@@ -238,7 +251,8 @@ def _read_excel_any(source, label: str) -> pd.DataFrame:
         except Exception as e:  # noqa: BLE001
             last_err = e
             continue
-    raise RuntimeError(f"Không đọc được Excel: {label}") from last_err
+    detail = f"{type(last_err).__name__}: {last_err}" if last_err else "unknown"
+    raise RuntimeError(f"Không đọc được Excel: {label}. Lỗi gốc: {detail}") from last_err
 
 
 def load_data(base_dir: str | Path | None = None, candidates: Iterable[str] = EXCEL_CANDIDATES) -> tuple[pd.DataFrame, str | None]:
