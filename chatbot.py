@@ -6,7 +6,16 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from smart_schema import corr_top_pairs, infer_schema, pick_best_date_col, safe_numeric, summarize_numeric, to_datetime_series
+from smart_schema import (
+    corr_top_pairs,
+    infer_schema,
+    missingness_summary,
+    pick_best_date_col,
+    pick_best_money_col,
+    safe_numeric,
+    summarize_numeric,
+    to_datetime_series,
+)
 
 
 def _fmt_money(x: float) -> str:
@@ -57,6 +66,8 @@ def build_context(df: pd.DataFrame, overview: dict[str, float]) -> str:
         lines.append(f"Cột nhóm: {', '.join(schema.categorical_cols[:8])}")
     if schema.numeric_cols:
         lines.append(f"Cột số: {', '.join(schema.numeric_cols[:10])}")
+    if schema.text_cols:
+        lines.append(f"Cột text: {', '.join(schema.text_cols[:6])}")
 
     if "year" in df.columns:
         years = sorted(set(pd.to_numeric(df["year"], errors="coerce").dropna().astype(int).tolist()))
@@ -69,6 +80,14 @@ def build_context(df: pd.DataFrame, overview: dict[str, float]) -> str:
         dt = to_datetime_series(df, best_date)
         if dt.notna().any():
             lines.append(f"Khoảng thời gian ({best_date}): {dt.min().date()} → {dt.max().date()}")
+
+    # Missingness warnings
+    miss = missingness_summary(df, top_k=8)
+    if not miss.empty and float(miss.iloc[0]["missing_pct"]) >= 30:
+        lines.append("")
+        lines.append("=== CẢNH BÁO CHẤT LƯỢNG DỮ LIỆU ===")
+        for _, r in miss.head(5).iterrows():
+            lines.append(f"- {r['col']}: thiếu {float(r['missing_pct']):.1f}% ({int(r['missing_count'])} ô)")
 
     # Year summary
     lines.append("")
@@ -89,7 +108,8 @@ def build_context(df: pd.DataFrame, overview: dict[str, float]) -> str:
     # Numeric quick stats (top money cols)
     lines.append("")
     lines.append("=== THỐNG KÊ NHANH (cột số) ===")
-    num_focus = schema.money_cols[:6] if schema.money_cols else schema.numeric_cols[:6]
+    best_money = pick_best_money_col(schema)
+    num_focus = ([best_money] if best_money else []) + [c for c in (schema.money_cols[:6] if schema.money_cols else schema.numeric_cols[:6]) if c != best_money]
     if num_focus:
         for c in num_focus:
             if c in df.columns:
@@ -107,6 +127,21 @@ def build_context(df: pd.DataFrame, overview: dict[str, float]) -> str:
             lines.append(f"- corr({a}, {b}) = {v:.3f}")
     else:
         lines.append("- (Không đủ cột số để tính tương quan)")
+
+    # Auto top group by best money
+    if best_money and schema.categorical_cols:
+        gcol = schema.categorical_cols[0]
+        try:
+            tmp = df.copy()
+            tmp["_g"] = tmp[gcol].astype(str)
+            tmp["_m"] = safe_numeric(df, best_money)
+            topg = tmp.groupby("_g")["_m"].sum().sort_values(ascending=False).head(5)
+            lines.append("")
+            lines.append(f"=== TOP {gcol} theo tổng {best_money} ===")
+            for k, v in topg.items():
+                lines.append(f"- {k}: {_fmt_money(v)}")
+        except Exception:  # noqa: BLE001
+            pass
 
     # Top services by revenue
     lines.append("")

@@ -26,17 +26,19 @@ class Schema:
     categorical_cols: list[str]
     id_cols: list[str]
     money_cols: list[str]
+    text_cols: list[str]
 
 
 def infer_schema(df: pd.DataFrame, max_unique_for_cat: int = 50) -> Schema:
     if df is None or df.empty:
-        return Schema(date_cols=[], numeric_cols=[], categorical_cols=[], id_cols=[], money_cols=[])
+        return Schema(date_cols=[], numeric_cols=[], categorical_cols=[], id_cols=[], money_cols=[], text_cols=[])
 
     date_cols: list[str] = []
     numeric_cols: list[str] = []
     categorical_cols: list[str] = []
     id_cols: list[str] = []
     money_cols: list[str] = []
+    text_cols: list[str] = []
 
     n = len(df)
     for col in df.columns:
@@ -78,6 +80,10 @@ def infer_schema(df: pd.DataFrame, max_unique_for_cat: int = 50) -> Schema:
         nunique = int(s.astype(str).nunique(dropna=True)) if len(s) else 0
         if 2 <= nunique <= max_unique_for_cat:
             categorical_cols.append(col)
+        else:
+            # Text-like: many unique values but not ID-ish
+            if nunique > max_unique_for_cat and col not in id_cols:
+                text_cols.append(col)
 
     # De-dup keep original order
     def _uniq(xs: list[str]) -> list[str]:
@@ -93,6 +99,7 @@ def infer_schema(df: pd.DataFrame, max_unique_for_cat: int = 50) -> Schema:
         categorical_cols=_uniq([c for c in df.columns if c in categorical_cols]),
         id_cols=_uniq([c for c in df.columns if c in id_cols]),
         money_cols=_uniq([c for c in df.columns if c in money_cols]),
+        text_cols=_uniq([c for c in df.columns if c in text_cols]),
     )
 
 
@@ -104,6 +111,35 @@ def pick_best_date_col(schema: Schema, prefer: tuple[str, ...] = ("booking_date"
             if p in _slug(c):
                 return c
     return schema.date_cols[0]
+
+
+def pick_best_money_col(schema: Schema, prefer: tuple[str, ...] = ("revenue", "doanh_thu", "total", "amount", "profit")) -> str | None:
+    if schema.money_cols:
+        for p in prefer:
+            for c in schema.money_cols:
+                if p in _slug(c):
+                    return c
+        return schema.money_cols[0]
+    if schema.numeric_cols:
+        for p in prefer:
+            for c in schema.numeric_cols:
+                if p in _slug(c):
+                    return c
+    return schema.numeric_cols[0] if schema.numeric_cols else None
+
+
+def missingness_summary(df: pd.DataFrame, top_k: int = 12) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=["col", "missing_pct", "missing_count"])
+    miss = df.isna().mean().sort_values(ascending=False)
+    out = pd.DataFrame(
+        {
+            "col": miss.index.astype(str),
+            "missing_pct": (miss.values * 100.0),
+            "missing_count": df.isna().sum().reindex(miss.index).values,
+        }
+    )
+    return out.head(top_k)
 
 
 def to_datetime_series(df: pd.DataFrame, col: str) -> pd.Series:
