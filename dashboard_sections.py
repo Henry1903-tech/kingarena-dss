@@ -234,10 +234,15 @@ def render_tab_discount_due(df: pd.DataFrame) -> None:
         st.info("Chưa có dữ liệu sau bộ lọc.")
         return
 
-    disc_count = int(df.get("has_discount", pd.Series([False] * len(df))).sum()) if len(df) else 0
-    due_count = int(df.get("has_due", pd.Series([False] * len(df))).sum()) if len(df) else 0
-    disc_sum = float(pd.to_numeric(df.get("discount", 0.0), errors="coerce").fillna(0.0).sum())
-    due_sum = float(pd.to_numeric(df.get("due", 0.0), errors="coerce").fillna(0.0).sum())
+    has_discount_s = df["has_discount"] if "has_discount" in df.columns else pd.Series(False, index=df.index)
+    has_due_s = df["has_due"] if "has_due" in df.columns else pd.Series(False, index=df.index)
+    disc_s = df["discount"] if "discount" in df.columns else pd.Series(0.0, index=df.index)
+    due_s = df["due"] if "due" in df.columns else pd.Series(0.0, index=df.index)
+
+    disc_count = int(pd.to_numeric(has_discount_s, errors="coerce").fillna(0).astype(int).sum()) if len(df) else 0
+    due_count = int(pd.to_numeric(has_due_s, errors="coerce").fillna(0).astype(int).sum()) if len(df) else 0
+    disc_sum = float(pd.to_numeric(disc_s, errors="coerce").fillna(0.0).sum())
+    due_sum = float(pd.to_numeric(due_s, errors="coerce").fillna(0.0).sum())
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
