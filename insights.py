@@ -25,6 +25,10 @@ def build_overview_insights(df: pd.DataFrame) -> list[str]:
     if df is None or df.empty:
         return ["Chưa có dữ liệu sau bộ lọc."]
 
+    def _num(col: str) -> pd.Series:
+        s = df[col] if col in df.columns else pd.Series(0.0, index=df.index)
+        return pd.to_numeric(s, errors="coerce").fillna(0.0)
+
     bullets: list[str] = []
 
     yoy = yoy_table(df)
@@ -48,8 +52,8 @@ def build_overview_insights(df: pd.DataFrame) -> list[str]:
             idd = m["due"].idxmax()
             bullets.append(f"Tháng công nợ cao nhất: **{m.loc[idd,'year_month']}** (≈ {_fmt_money(m.loc[idd,'due'])}).")
 
-    due = pd.to_numeric(df.get("due", 0.0), errors="coerce").fillna(0.0).sum()
-    rev = pd.to_numeric(df.get("revenue", 0.0), errors="coerce").fillna(0.0).sum()
+    due = float(_num("due").sum())
+    rev = float(_num("revenue").sum())
     if rev > 0:
         bullets.append(f"Tỷ lệ còn nợ trên doanh thu: **{_pct(due/rev)}**.")
 
