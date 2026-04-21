@@ -13,6 +13,7 @@ import insights
 from config import DEFAULTS, PALETTE
 from ui_components import info_line, insight_box, kpi_card
 from chatbot import build_context, chat_once, context_hash, reset_model
+from auto_explore import render_auto_explore
 
 
 def _fmt_money(x: float) -> str:
@@ -484,4 +485,8 @@ def render_tab_assistant(df: pd.DataFrame, overview: dict[str, float]) -> None:
         st.session_state.assistant_history.append({"role": "assistant", "content": ans})
         st.session_state._assistant_inflight_q = None
         st.rerun()
+
+
+def render_tab_auto_explore(df: pd.DataFrame) -> None:
+    render_auto_explore(df)
 

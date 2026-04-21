@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from smart_schema import corr_top_pairs, infer_schema, pick_best_date_col, safe_numeric, summarize_numeric, to_datetime_series
+
 
 def _fmt_money(x: float) -> str:
     try:
@@ -44,10 +46,29 @@ def build_context(df: pd.DataFrame, overview: dict[str, float]) -> str:
         lines.append("Dữ liệu sau lọc: rỗng.")
         return "\n".join(lines)
 
+    schema = infer_schema(df)
+    lines.append("=== SCHEMA (tự nhận diện) ===")
+    lines.append(f"Số dòng: {len(df)} | Số cột: {df.shape[1]}")
+    if schema.date_cols:
+        lines.append(f"Cột thời gian: {', '.join(schema.date_cols[:6])}")
+    if schema.money_cols:
+        lines.append(f"Cột tiền/tổng: {', '.join(schema.money_cols[:8])}")
+    if schema.categorical_cols:
+        lines.append(f"Cột nhóm: {', '.join(schema.categorical_cols[:8])}")
+    if schema.numeric_cols:
+        lines.append(f"Cột số: {', '.join(schema.numeric_cols[:10])}")
+
     if "year" in df.columns:
         years = sorted(set(pd.to_numeric(df["year"], errors="coerce").dropna().astype(int).tolist()))
         if years:
             lines.append(f"Năm trong dữ liệu sau lọc: {', '.join(map(str, years))}")
+
+    # Auto date summary even if year/month columns are not present
+    best_date = pick_best_date_col(schema)
+    if best_date:
+        dt = to_datetime_series(df, best_date)
+        if dt.notna().any():
+            lines.append(f"Khoảng thời gian ({best_date}): {dt.min().date()} → {dt.max().date()}")
 
     # Year summary
     lines.append("")
@@ -64,6 +85,28 @@ def build_context(df: pd.DataFrame, overview: dict[str, float]) -> str:
             lines.append(f"- {int(r['year'])}: bookings={int(r['bookings'])}, revenue={_fmt_money(r['revenue'])}")
     else:
         lines.append("- (Không đủ cột year/revenue)")
+
+    # Numeric quick stats (top money cols)
+    lines.append("")
+    lines.append("=== THỐNG KÊ NHANH (cột số) ===")
+    num_focus = schema.money_cols[:6] if schema.money_cols else schema.numeric_cols[:6]
+    if num_focus:
+        for c in num_focus:
+            if c in df.columns:
+                s = summarize_numeric(df, c)
+                lines.append(f"- {c}: sum={_fmt_money(s['sum'])}, mean={_fmt_money(s['mean'])}, min={_fmt_money(s['min'])}, max={_fmt_money(s['max'])}")
+    else:
+        lines.append("- (Không đủ cột số)")
+
+    # Top correlations
+    lines.append("")
+    lines.append("=== TƯƠNG QUAN (top) ===")
+    pairs = corr_top_pairs(df, schema.numeric_cols[:12], top_k=6)
+    if pairs:
+        for a, b, v in pairs:
+            lines.append(f"- corr({a}, {b}) = {v:.3f}")
+    else:
+        lines.append("- (Không đủ cột số để tính tương quan)")
 
     # Top services by revenue
     lines.append("")

@@ -151,8 +151,16 @@ def main() -> None:
 
     overview = compute_overview(df)
 
-    tab_overview, tab_customer, tab_fields, tab_disc, tab_decision, tab_assistant = st.tabs(
-        ["Tổng quan", "Khách hàng & dịch vụ", "Sân & thanh toán", "Giảm giá & công nợ", "Decision Lab", "Trợ lý phân tích"]
+    tab_overview, tab_customer, tab_fields, tab_disc, tab_explore, tab_decision, tab_assistant = st.tabs(
+        [
+            "Tổng quan",
+            "Khách hàng & dịch vụ",
+            "Sân & thanh toán",
+            "Giảm giá & công nợ",
+            "Khám phá dữ liệu",
+            "Decision Lab",
+            "Trợ lý phân tích",
+        ]
     )
 
     with tab_overview:
@@ -163,6 +171,8 @@ def main() -> None:
         sections.render_tab_fields_payment(df)
     with tab_disc:
         sections.render_tab_discount_due(df)
+    with tab_explore:
+        sections.render_tab_auto_explore(df)
     with tab_decision:
         sections.render_tab_decision_lab()
     with tab_assistant:
