@@ -60,6 +60,20 @@ def _standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
         rename[c] = sc
     df = df.rename(columns=rename)
 
+    # Ensure unique column names after slugify (Excel often has near-duplicate headers)
+    cols = list(df.columns)
+    seen: dict[str, int] = {}
+    uniq: list[str] = []
+    for c in cols:
+        k = str(c)
+        if k not in seen:
+            seen[k] = 1
+            uniq.append(k)
+        else:
+            seen[k] += 1
+            uniq.append(f"{k}_{seen[k]}")
+    df.columns = uniq
+
     # alias map (expand as you meet real King Arena excel)
     alias = {
         "date": "booking_date",
