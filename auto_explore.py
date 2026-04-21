@@ -41,8 +41,10 @@ def render_auto_explore(df: pd.DataFrame) -> None:
         if not miss.empty:
             st.markdown("**Top cột thiếu dữ liệu**")
             st.dataframe(miss, use_container_width=True, hide_index=True)
-        st.markdown("**Preview (10 dòng)**")
+        st.markdown("**Preview đầu file (10 dòng)**")
         st.dataframe(df.head(10), use_container_width=True, hide_index=True)
+        st.markdown("**Preview cuối file (10 dòng)**")
+        st.dataframe(df.tail(10), use_container_width=True, hide_index=True)
 
     # Choose columns interactively
     c1, c2, c3 = st.columns([1, 1, 1])
@@ -61,6 +63,110 @@ def render_auto_explore(df: pd.DataFrame) -> None:
     with c3:
         group_col = st.selectbox("Nhóm (categorical)", options=["(không)"] + schema.categorical_cols, index=0)
         group_col = None if group_col == "(không)" else group_col
+
+    st.divider()
+
+    st.markdown("### Tự động vẽ nhiều biểu đồ")
+    st.caption("Phần này tự sinh nhiều chart theo file. Nếu file lớn, hãy giảm số lượng biểu đồ để chạy mượt.")
+    max_num = int(st.slider("Số cột số tối đa để auto-chart", min_value=2, max_value=12, value=6, step=1))
+    max_cat = int(st.slider("Số cột nhóm tối đa để auto-chart", min_value=1, max_value=10, value=4, step=1))
+
+    auto_num_cols = schema.numeric_cols[:max_num]
+    auto_cat_cols = schema.categorical_cols[:max_cat]
+    best_money = pick_best_money_col(schema)
+
+    # A) KPI nhanh cho top cột tiền/số
+    if auto_num_cols:
+        st.markdown("#### KPI nhanh (tự động)")
+        kcols = st.columns(min(6, len(auto_num_cols)))
+        for i, col in enumerate(auto_num_cols[:6]):
+            s = safe_numeric(df, col)
+            with kcols[i % len(kcols)]:
+                st.metric(label=col, value=f"{s.sum():,.0f}".replace(",", "."), delta=f"TB {s.mean():,.0f}".replace(",", "."))
+
+    st.divider()
+
+    # 1) Time trend (auto) — for best_money + a few numeric cols
+    if date_col:
+        dt = to_datetime_series(df, date_col)
+        tmp = df.copy()
+        tmp["_dt"] = dt
+        tmp = tmp[tmp["_dt"].notna()].copy()
+        if not tmp.empty:
+            freq = st.radio("Gộp theo thời gian", options=["Ngày", "Tuần", "Tháng"], horizontal=True, index=2, key="auto_freq")
+            if freq == "Ngày":
+                tmp["_bucket"] = tmp["_dt"].dt.date.astype(str)
+            elif freq == "Tuần":
+                tmp["_bucket"] = tmp["_dt"].dt.to_period("W").astype(str)
+            else:
+                tmp["_bucket"] = tmp["_dt"].dt.to_period("M").astype(str)
+
+            trend_cols = []
+            if best_money and best_money in df.columns:
+                trend_cols.append(best_money)
+            for c in auto_num_cols:
+                if c not in trend_cols:
+                    trend_cols.append(c)
+                if len(trend_cols) >= 3:
+                    break
+
+            st.markdown("#### Xu hướng theo thời gian (tự động)")
+            for c in trend_cols:
+                tmp["_y"] = safe_numeric(df, c)
+                g = tmp.groupby("_bucket", dropna=False)["_y"].sum().reset_index()
+                fig = px.line(g, x="_bucket", y="_y", markers=True, title=f"Xu hướng {c} theo {freq.lower()}")
+                fig.update_layout(height=320, margin=dict(l=10, r=10, t=50, b=10))
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Không có đủ dữ liệu thời gian hợp lệ để vẽ xu hướng.")
+    else:
+        st.info("Không tìm thấy cột thời gian hợp lệ để auto vẽ xu hướng. (Bạn có thể map cột ngày ở sidebar.)")
+
+    st.divider()
+
+    # 2) Distributions (auto) — histogram + box for multiple numeric columns
+    if auto_num_cols:
+        st.markdown("#### Phân bố & outlier (tự động)")
+        for col in auto_num_cols:
+            s = safe_numeric(df, col)
+            cA, cB = st.columns([1.3, 1])
+            with cA:
+                fig = px.histogram(s, nbins=30, title=f"Histogram: {col}")
+                fig.update_layout(height=260, margin=dict(l=10, r=10, t=50, b=10))
+                st.plotly_chart(fig, use_container_width=True)
+            with cB:
+                figb = px.box(s, title=f"Boxplot: {col}")
+                figb.update_layout(height=260, margin=dict(l=10, r=10, t=50, b=10))
+                st.plotly_chart(figb, use_container_width=True)
+
+    st.divider()
+
+    # 3) Category charts (auto) — count + sum(best_money) by category
+    if auto_cat_cols:
+        st.markdown("#### Theo nhóm (tự động)")
+        for gc in auto_cat_cols:
+            s = df[gc].astype(str)
+            top_count = s.value_counts().head(15).reset_index()
+            top_count.columns = [gc, "count"]
+            figc = px.bar(top_count.sort_values("count", ascending=True), x="count", y=gc, orientation="h", title=f"Top {gc} theo số lượng")
+            figc.update_layout(height=320, margin=dict(l=10, r=10, t=50, b=10))
+            st.plotly_chart(figc, use_container_width=True)
+
+            if best_money and best_money in df.columns:
+                tmp = df.copy()
+                tmp["_g"] = tmp[gc].astype(str)
+                tmp["_m"] = safe_numeric(df, best_money)
+                g = tmp.groupby("_g")["_m"].sum().sort_values(ascending=False).head(15).reset_index()
+                g.columns = [gc, f"sum_{best_money}"]
+                figm = px.bar(
+                    g.sort_values(f"sum_{best_money}", ascending=True),
+                    x=f"sum_{best_money}",
+                    y=gc,
+                    orientation="h",
+                    title=f"Top {gc} theo tổng {best_money}",
+                )
+                figm.update_layout(height=320, margin=dict(l=10, r=10, t=50, b=10))
+                st.plotly_chart(figm, use_container_width=True)
 
     st.divider()
 
