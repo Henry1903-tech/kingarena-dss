@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>King Arena DSS — AI Chatbot & Biểu đồ</title>
+    <meta name="description" content="Landing page hiện đại cho King Arena DSS: auto charts + AI chatbox Gemini, kèm hướng dẫn chụp màn hình đưa vào Word." />
+    <style>
+      :root{
+        --bg0:#070A12;
+        --bg1:#0B1022;
+        --card: rgba(255,255,255,.06);
+        --card2: rgba(255,255,255,.04);
+        --muted: rgba(255,255,255,.74);
+        --text: rgba(255,255,255,.92);
+        --border: rgba(255,255,255,.12);
+        --accent:#7c3aed;   /* purple */
+        --accentB:#60a5fa;  /* blue */
+        --accentG:#34d399;  /* green */
+        --warn:#fbbf24;
+        --shadow: 0 18px 50px rgba(0,0,0,.35);
+      }
+      *{box-sizing:border-box}
+      body{
+        margin:0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+        background:
+          radial-gradient(1200px 700px at 10% 5%, rgba(124,58,237,.22), transparent 55%),
+          radial-gradient(1100px 650px at 85% 8%, rgba(96,165,250,.18), transparent 55%),
+          radial-gradient(1100px 650px at 60% 100%, rgba(52,211,153,.10), transparent 55%),
+          linear-gradient(180deg, var(--bg0), var(--bg1));
+        color:var(--text);
+        line-height:1.55;
+      }
+      a{color:inherit}
+      .wrap{max-width:1120px;margin:0 auto;padding:28px 18px 72px}
+      .topbar{
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        background: linear-gradient(180deg, rgba(7,10,18,.82), rgba(7,10,18,.55));
+        border-bottom: 1px solid rgba(255,255,255,.08);
+      }
+      .topbar .inner{
+        max-width:1120px;margin:0 auto;padding:10px 18px;
+        display:flex;align-items:center;justify-content:space-between;gap:12px;
+      }
+      .brand{
+        display:flex;gap:10px;align-items:center;
+        font-weight:800;letter-spacing:.2px;
+      }
+      .dot{
+        width:12px;height:12px;border-radius:999px;
+        background: linear-gradient(135deg, var(--accent), var(--accentB));
+        box-shadow: 0 0 0 6px rgba(124,58,237,.16);
+      }
+      .nav{
+        display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;
+      }
+      .nav a{
+        text-decoration:none;
+        padding:8px 10px;
+        border-radius:12px;
+        border:1px solid rgba(255,255,255,.10);
+        background:rgba(255,255,255,.03);
+        font-size:13px;
+        color:rgba(255,255,255,.84);
+      }
+      header{
+        padding:22px 18px 18px;
+        border:1px solid var(--border);
+        background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+        border-radius:22px;
+        box-shadow: var(--shadow);
+      }
+      .title{
+        display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+      }
+      .pill{
+        display:inline-flex;align-items:center;gap:8px;
+        padding:7px 10px;border-radius:999px;
+        border:1px solid rgba(255,255,255,.12);
+        background: rgba(255,255,255,.04);
+        font-size:12px;color:var(--muted);
+      }
+      .pill .mini{
+        width:8px;height:8px;border-radius:99px;background:var(--accentB);
+        box-shadow: 0 0 0 4px rgba(96,165,250,.15);
+      }
+      h1{margin:0;font-size:28px;letter-spacing:.2px}
+      .sub{
+        margin:10px 0 0;
+        color:var(--muted);
+        font-size:14px;
+      }
+      p{margin:10px 0 0;color:var(--muted)}
+      .cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+      .btn{
+        display:inline-flex;align-items:center;justify-content:center;
+        padding:10px 12px;border-radius:14px;
+        border:1px solid rgba(255,255,255,.12);
+        text-decoration:none;
+        background:rgba(255,255,255,.04);
+        color:var(--text);
+        font-weight:600;
+      }
+      .btn.primary{background:linear-gradient(135deg, rgba(124,58,237,.26), rgba(96,165,250,.18));border-color:rgba(124,58,237,.35)}
+      .btn.green{background:linear-gradient(135deg, rgba(52,211,153,.20), rgba(96,165,250,.10));border-color:rgba(52,211,153,.35)}
+      .btn.ghost{background:rgba(255,255,255,.03)}
+      .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;margin-top:16px}
+      .card{
+        grid-column:span 12;
+        border:1px solid rgba(255,255,255,.12);
+        background: var(--card);
+        border-radius:22px;
+        padding:16px;
+        box-shadow: 0 10px 28px rgba(0,0,0,.18);
+      }
+      @media(min-width:900px){
+        .span6{grid-column:span 6}
+        .span4{grid-column:span 4}
+        .span8{grid-column:span 8}
+      }
+      h2{margin:0 0 10px;font-size:18px}
+      h3{margin:0 0 8px;font-size:15px;color:rgba(255,255,255,.88)}
+      ul{margin:8px 0 0 18px;color:var(--muted)}
+      li{margin:6px 0}
+      .hr{height:1px;background:rgba(255,255,255,.12);margin:18px 0}
+      .step{
+        display:flex;gap:12px;align-items:flex-start;
+        padding:14px;border:1px solid rgba(255,255,255,.10);
+        border-radius:18px;background: rgba(255,255,255,.03);
+      }
+      .n{
+        width:30px;height:30px;border-radius:10px;
+        display:flex;align-items:center;justify-content:center;
+        background:linear-gradient(135deg, rgba(124,58,237,.25), rgba(96,165,250,.18));
+        border:1px solid rgba(124,58,237,.35);
+        font-weight:800;
+      }
+      .cap{
+        margin-top:8px;
+        font-size:12px;color:var(--muted);
+        border-left:3px solid rgba(255,255,255,.18);
+        padding-left:10px;
+      }
+      .shot{
+        margin-top:10px;
+        border-radius:18px;
+        border:1px solid rgba(255,255,255,.12);
+        background: var(--card2);
+        padding:12px;
+      }
+      .shot b{color:rgba(255,255,255,.9)}
+      .shot p{margin:6px 0 0}
+      .mock{
+        margin-top:10px;
+        border-radius:18px;
+        border:1px solid rgba(255,255,255,.12);
+        background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+        padding:12px;
+      }
+      .mock .row{display:flex;gap:10px;margin-top:10px}
+      .bubble{
+        max-width:78%;
+        padding:10px 12px;
+        border-radius:16px;
+        border:1px solid rgba(255,255,255,.10);
+        background: rgba(255,255,255,.04);
+        color: rgba(255,255,255,.88);
+        font-size:13px;
+      }
+      .bubble.me{
+        margin-left:auto;
+        background: linear-gradient(135deg, rgba(124,58,237,.18), rgba(96,165,250,.14));
+        border-color: rgba(124,58,237,.28);
+      }
+      .bubble.bot{
+        background: rgba(52,211,153,.08);
+        border-color: rgba(52,211,153,.22);
+      }
+      .spark{
+        width:100%;
+        height:110px;
+        border-radius:14px;
+        border:1px dashed rgba(255,255,255,.16);
+        background:
+          radial-gradient(500px 140px at 20% 50%, rgba(96,165,250,.12), transparent 60%),
+          radial-gradient(500px 140px at 70% 50%, rgba(124,58,237,.12), transparent 60%),
+          rgba(255,255,255,.02);
+        display:flex;align-items:center;justify-content:center;
+        color: rgba(255,255,255,.72);
+        font-size:13px;
+      }
+      code{
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        background: rgba(255,255,255,.06);
+        padding: 2px 6px;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,.10);
+      }
+      .note{
+        padding:12px 12px;
+        border-radius:18px;
+        border:1px solid rgba(251,191,36,.25);
+        background:rgba(251,191,36,.08);
+        color:rgba(255,255,255,.86);
+      }
+      footer{margin-top:22px;color:var(--muted);font-size:12px}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="topbar">
+        <div class="inner">
+          <div class="brand"><span class="dot"></span> King Arena DSS</div>
+          <div class="nav">
+            <a href="#charts">Biểu đồ</a>
+            <a href="#ai">AI Chatbox</a>
+            <a href="#steps">Triển khai</a>
+          </div>
+        </div>
+      </div>
+      <header>
+        <div class="title">
+          <span class="pill"><span class="mini"></span>King Arena</span>
+          <span class="pill"><span class="mini" style="background:var(--accentG)"></span>DSS Dashboard</span>
+          <span class="pill"><span class="mini" style="background:var(--accent)"></span>AI Chatbox (Gemini)</span>
+          <span class="pill"><span class="mini" style="background:var(--warn)"></span>Auto Charts</span>
+        </div>
+        <h1>King Arena DSS Studio</h1>
+        <div class="sub">
+          1 trang gọn — hiện đại — dễ dùng: <b>biểu đồ tự động</b> từ Excel và <b>AI chatbox</b> (Gemini) trả lời dựa trên số liệu.
+          Kèm checklist chụp màn hình để bạn dán thẳng vào Word.
+        </div>
+        <div class="cta">
+          <a class="btn primary" href="#" title="Dán link Streamlit Cloud vào đây">Mở Dashboard (Streamlit)</a>
+          <a class="btn green" href="#" title="Dán link GitHub repo vào đây">Xem mã nguồn (GitHub)</a>
+          <a class="btn ghost" href="#steps">Quy trình triển khai</a>
+          <a class="btn ghost" href="#charts">Biểu đồ tự động</a>
+          <a class="btn ghost" href="#ai">AI Chatbox</a>
+        </div>
+      </header>
+
+      <div class="grid">
+        <section class="card span6" id="charts">
+          <h2>Biểu đồ tự động (Auto Charts)</h2>
+          <p>Upload Excel → hệ thống tự nhận diện <b>cột thời gian / cột số / cột nhóm</b> và “tự vẽ” theo dữ liệu thật.</p>
+          <ul>
+            <li><b>Trend</b> theo ngày/tuần/tháng (tự chọn cột số “quan trọng”)</li>
+            <li><b>Histogram + Boxplot</b> để nhìn phân bố và outlier nhanh</li>
+            <li><b>Top nhóm</b> theo số lượng và theo tổng “cột tiền” tốt nhất</li>
+            <li><b>Correlation</b> + top cặp tương quan mạnh</li>
+            <li><b>Scatter</b> 2 biến số (có thể tô màu theo nhóm)</li>
+          </ul>
+          <div class="mock">
+            <div class="spark">Vị trí đặt ảnh “Khám phá dữ liệu” (trend / histogram / top / correlation / scatter)</div>
+            <div class="cap"><b>Ảnh chụp gợi ý:</b> 1 ảnh tổng quan tab + 1 ảnh scatter/correlation.</div>
+          </div>
+          <div class="shot">
+            <b>Caption (copy vào Word)</b>
+            <p class="cap">Hình 5.x — Tab “Khám phá dữ liệu”: biểu đồ tự động theo file Excel (trend, phân bố/outlier, top nhóm, tương quan, scatter).</p>
+          </div>
+        </section>
+
+        <section class="card span6" id="ai">
+          <h2>AI Chatbox (Gemini)</h2>
+          <p>Chatbox trả lời ngắn gọn, đúng số liệu vì luôn kèm <b>ngữ cảnh từ Excel sau lọc</b> (schema, thống kê, top nhóm, cảnh báo thiếu dữ liệu).</p>
+          <ul>
+            <li><b>Hỏi nhanh</b>: lịch trống, giá theo khung giờ</li>
+            <li><b>Gợi ý</b>: combo/upsell theo ngữ cảnh</li>
+            <li><b>Không bịa số</b>: thiếu dữ liệu sẽ nói rõ và gợi ý cách kiểm tra</li>
+          </ul>
+          <div class="note" style="margin-top:10px">
+            <b>Lưu ý:</b> Trên Streamlit Cloud, API key không để trong code. Cần cấu hình <code>GEMINI_API_KEY</code> ở Secrets.
+          </div>
+          <div class="mock" aria-label="mock-chat">
+            <div class="row">
+              <div class="bubble me">Mai 7h còn sân không? Giá bao nhiêu?</div>
+            </div>
+            <div class="row">
+              <div class="bubble bot">Mình có thể kiểm tra theo file Excel bạn đang xem. Nếu còn trống, mình sẽ báo mức giá gợi ý theo DSS và đề xuất combo phù hợp.</div>
+            </div>
+            <div class="cap"><b>Ảnh chụp gợi ý:</b> 1 ảnh chat demo + 1 ảnh “Ngữ cảnh gửi cho mô hình”.</div>
+          </div>
+          <div class="shot">
+            <b>Caption (copy vào Word)</b>
+            <p class="cap">Hình 5.x — AI Chatbox (Gemini): hỏi đáp dựa trên số liệu Excel sau lọc, kèm ngữ cảnh (schema + thống kê + top nhóm).</p>
+          </div>
+        </section>
+
+        <section class="card" id="steps">
+          <h2>Quy trình triển khai (GitHub → Streamlit Cloud → AI)</h2>
+          <p>
+            Phần này chỉ tập trung vào các bước phục vụ <b>biểu đồ</b> và <b>AI chatbox</b>.
+            Mỗi bước đều kèm gợi ý ảnh chụp để đưa vào Word.
+          </p>
+
+          <div class="hr"></div>
+
+          <div class="step">
+            <div class="n">1</div>
+            <div>
+              <h3>Tạo GitHub repository</h3>
+              <ul>
+                <li>Tạo repo mới (Public/Private tùy yêu cầu báo cáo)</li>
+                <li>Không tạo README trên GitHub nếu đã có sẵn trong dự án</li>
+              </ul>
+              <div class="cap"><b>Ảnh chụp:</b> “Create a new repository” + trang repo sau khi tạo.</div>
+            </div>
+          </div>
+
+          <div class="step" style="margin-top:12px">
+            <div class="n">2</div>
+            <div>
+              <h3>Upload mã nguồn DSS lên GitHub</h3>
+              <ul>
+                <li>Upload các file chính: <code>app.py</code>, <code>requirements.txt</code>, các module <code>.py</code>, folder <code>.streamlit/</code></li>
+                <li>Không upload <code>.env</code> hoặc secrets</li>
+              </ul>
+              <div class="cap"><b>Ảnh chụp:</b> “Upload files” + “Commit changes” + cây thư mục repo.</div>
+            </div>
+          </div>
+
+          <div class="step" style="margin-top:12px">
+            <div class="n">3</div>
+            <div>
+              <h3>Deploy app lên Streamlit Community Cloud</h3>
+              <ul>
+                <li>New app → chọn repo/branch</li>
+                <li>Main file path: <code>app.py</code></li>
+              </ul>
+              <div class="cap"><b>Ảnh chụp:</b> “New app” + build log + app chạy thành công.</div>
+            </div>
+          </div>
+
+          <div class="step" style="margin-top:12px">
+            <div class="n">4</div>
+            <div>
+              <h3>Upload Excel để hệ thống tự sinh biểu đồ</h3>
+              <ul>
+                <li>Trong sidebar: Upload file <code>.xlsx</code></li>
+                <li>Nếu file có nhiều sheet/header lệch: chọn sheet, chỉnh skiprows, map cột (nếu cần)</li>
+              </ul>
+              <div class="cap"><b>Ảnh chụp:</b> Sidebar upload + tab “Khám phá dữ liệu” (ít nhất 2 biểu đồ).</div>
+            </div>
+          </div>
+
+          <div class="step" style="margin-top:12px">
+            <div class="n">5</div>
+            <div>
+              <h3>Bật AI Chatbox bằng Gemini Secrets</h3>
+              <ul>
+                <li>Manage app → Settings → Secrets</li>
+                <li>Thêm: <code>GEMINI_API_KEY="..."</code></li>
+              </ul>
+              <div class="cap"><b>Ảnh chụp:</b> Secrets (che key) + chat demo + ngữ cảnh mô hình.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card span8">
+          <h2>Checklist ảnh chụp đưa vào Word</h2>
+          <ul>
+            <li><b>Hình A</b>: Tạo repo GitHub</li>
+            <li><b>Hình B</b>: Upload & commit mã nguồn</li>
+            <li><b>Hình C</b>: Deploy Streamlit Cloud thành công</li>
+            <li><b>Hình D</b>: Tab “Khám phá dữ liệu” (nhiều biểu đồ tự động)</li>
+            <li><b>Hình E</b>: Secrets Gemini (che key)</li>
+            <li><b>Hình F</b>: Chat demo + ngữ cảnh mô hình</li>
+          </ul>
+          <p class="cap">
+            Gợi ý caption: “Hình 5.x – [Mô tả]”. Mỗi caption 1–2 câu, nêu mục tiêu và kết quả.
+          </p>
+        </section>
+
+        <section class="card span4">
+          <h2>5) Ghi chú an toàn</h2>
+          <ul>
+            <li>Không đưa API key vào GitHub</li>
+            <li>Dùng Streamlit Secrets cho <code>GEMINI_API_KEY</code></li>
+            <li>Nếu dữ liệu nhạy cảm: để repo Private và giới hạn quyền truy cập app</li>
+          </ul>
+        </section>
+      </div>
+
+      <footer>
+        King Arena DSS Studio — landing page hiện đại cho báo cáo. Bạn chỉ cần dán link Streamlit & GitHub vào 2 nút trên đầu trang.
+      </footer>
+    </div>
+  </body>
+</html>
+
