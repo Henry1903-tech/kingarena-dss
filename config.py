@@ -14,6 +14,8 @@ EXCEL_CANDIDATES = (
     "data_mau.xlsx",
     "data mẫu.xlsx",
     "data mẫu(1).xlsx",
+    "kingarena_data.xlsx",
+    "du_lieu_san",
 )
 
 

@@ -28,7 +28,10 @@ def monthly_series(df: pd.DataFrame) -> pd.DataFrame:
     for c in ("revenue", "profit", "due", "discount", "hours_sold"):
         if c in out.columns:
             out[c] = pd.to_numeric(out[c], errors="coerce").fillna(0.0)
-    return out.sort_values("year_month")
+    # Avoid pandas ambiguity when index level name equals a column label
+    out = out.reset_index(drop=True)
+    out.index.name = None
+    return out.sort_values("year_month", kind="stable", ignore_index=True)
 
 
 def yoy_table(df: pd.DataFrame) -> pd.DataFrame:
@@ -53,7 +56,9 @@ def yoy_table(df: pd.DataFrame) -> pd.DataFrame:
     for c in ("revenue", "profit", "due", "discount", "hours_sold"):
         if c in out.columns:
             out[c] = pd.to_numeric(out[c], errors="coerce").fillna(0.0)
-    return out.sort_values("year")
+    out = out.reset_index(drop=True)
+    out.index.name = None
+    return out.sort_values("year", kind="stable", ignore_index=True)
 
 
 def top_services(df: pd.DataFrame, n: int = 10) -> pd.DataFrame:
