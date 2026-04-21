@@ -224,6 +224,50 @@ def _derive_time(df: pd.DataFrame) -> pd.DataFrame:
 def empty_df() -> pd.DataFrame:
     return pd.DataFrame(columns=sorted(CANON_COLS))
 
+def apply_column_mapping(df: pd.DataFrame, mapping: dict[str, str]) -> pd.DataFrame:
+    """
+    mapping: {canonical_col: existing_col_in_df}
+    If mapping points to a missing column, it's ignored.
+    """
+    if df is None or df.empty or not mapping:
+        return df
+    rename: dict[str, str] = {}
+    for canon, src in mapping.items():
+        if not canon or not src:
+            continue
+        if src in df.columns and canon not in df.columns:
+            rename[src] = canon
+    return df.rename(columns=rename) if rename else df
+
+
+def list_sheets_from_upload(file_bytes: bytes) -> list[str]:
+    try:
+        import openpyxl  # type: ignore
+
+        wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
+        return list(wb.sheetnames)
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def read_excel_raw_from_upload(
+    file_name: str,
+    file_bytes: bytes,
+    sheet_name: str | int | None = None,
+    skiprows: int = 0,
+) -> pd.DataFrame:
+    """
+    Read raw excel (no standardize/derive) for preview + mapping UI.
+    """
+    df = pd.read_excel(BytesIO(file_bytes), engine="openpyxl", sheet_name=sheet_name, skiprows=skiprows)
+    if isinstance(df, dict):
+        # when sheet_name=None
+        for _, sdf in df.items():
+            if sdf is not None and not sdf.empty:
+                return sdf
+        return pd.DataFrame()
+    return df if df is not None else pd.DataFrame()
+
 
 def _read_excel_any(source, label: str) -> pd.DataFrame:
     last_err: Exception | None = None
@@ -276,6 +320,24 @@ def load_data(base_dir: str | Path | None = None, candidates: Iterable[str] = EX
 def load_data_from_upload(file_name: str, file_bytes: bytes) -> tuple[pd.DataFrame, str]:
     df = _read_excel_any(BytesIO(file_bytes), label=file_name)
     return df, file_name
+
+
+def build_dataset_from_raw(df_raw: pd.DataFrame, mapping: dict[str, str] | None = None) -> pd.DataFrame:
+    """
+    Take a raw dataframe, standardize column names, apply optional mapping,
+    then derive time + finance fields.
+    """
+    if df_raw is None or df_raw.empty:
+        return empty_df()
+    df = df_raw.copy()
+    df = _standardize_columns(df)
+    if mapping:
+        df = apply_column_mapping(df, mapping)
+    if "booking_date" in df.columns:
+        df["booking_date"] = pd.to_datetime(df["booking_date"], errors="coerce")
+    df = _derive_time(df)
+    df = _derive_finance(df)
+    return df
 
 
 @dataclass(frozen=True)
