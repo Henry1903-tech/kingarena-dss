@@ -1,0 +1,212 @@
+from __future__ import annotations
+
+import hashlib
+import os
+from dataclasses import dataclass
+
+import pandas as pd
+
+
+def _fmt_money(x: float) -> str:
+    try:
+        x = float(x)
+    except Exception:  # noqa: BLE001
+        return "0"
+    return f"{x:,.0f}".replace(",", ".")
+
+
+def _safe_head_table(df: pd.DataFrame, cols: list[str], n: int = 5) -> pd.DataFrame:
+    use = [c for c in cols if c in df.columns]
+    if not use:
+        return pd.DataFrame()
+    out = df[use].copy()
+    return out.head(n)
+
+
+def build_context(df: pd.DataFrame, overview: dict[str, float]) -> str:
+    """
+    Create a compact Vietnamese context string to send to the LLM.
+    """
+    lines: list[str] = []
+    lines.append("Bạn là trợ lý phân tích cho sân bóng King Arena.")
+    lines.append("Chỉ trả lời dựa trên số liệu trong ngữ cảnh. Không bịa số.")
+    lines.append("")
+    lines.append("=== TÓM TẮT KPI ===")
+    lines.append(f"Lượt đặt: {int(overview.get('bookings', 0))}")
+    lines.append(f"Doanh thu: {_fmt_money(overview.get('revenue', 0.0))}")
+    lines.append(f"Lợi nhuận (nếu có): {_fmt_money(overview.get('profit', 0.0))}")
+    lines.append(f"Công nợ: {_fmt_money(overview.get('due', 0.0))}")
+    lines.append(f"Tổng giảm giá: {_fmt_money(overview.get('discount', 0.0))}")
+    lines.append(f"Giờ đã bán: {overview.get('hours_sold', 0.0):.1f}")
+    lines.append("")
+
+    if df is None or df.empty:
+        lines.append("Dữ liệu sau lọc: rỗng.")
+        return "\n".join(lines)
+
+    if "year" in df.columns:
+        years = sorted(set(pd.to_numeric(df["year"], errors="coerce").dropna().astype(int).tolist()))
+        if years:
+            lines.append(f"Năm trong dữ liệu sau lọc: {', '.join(map(str, years))}")
+
+    # Year summary
+    lines.append("")
+    lines.append("=== THEO NĂM (tổng hợp) ===")
+    if "year" in df.columns and "revenue" in df.columns:
+        y = (
+            df.assign(revenue_num=pd.to_numeric(df["revenue"], errors="coerce").fillna(0.0))
+            .groupby("year", dropna=False)
+            .agg(bookings=("revenue_num", "size"), revenue=("revenue_num", "sum"))
+            .reset_index()
+            .sort_values("year")
+        )
+        for _, r in y.tail(6).iterrows():
+            lines.append(f"- {int(r['year'])}: bookings={int(r['bookings'])}, revenue={_fmt_money(r['revenue'])}")
+    else:
+        lines.append("- (Không đủ cột year/revenue)")
+
+    # Top services by revenue
+    lines.append("")
+    lines.append("=== TOP DỊCH VỤ/GÓI (doanh thu) ===")
+    service_col = "service_type" if "service_type" in df.columns else ("package_type" if "package_type" in df.columns else None)
+    if service_col and "revenue" in df.columns:
+        s = (
+            df.assign(revenue_num=pd.to_numeric(df["revenue"], errors="coerce").fillna(0.0))
+            .groupby(service_col, dropna=False)["revenue_num"]
+            .sum()
+            .sort_values(ascending=False)
+            .head(8)
+        )
+        for k, v in s.items():
+            lines.append(f"- {k}: {_fmt_money(v)}")
+    else:
+        lines.append("- (Không đủ cột dịch vụ/gói hoặc revenue)")
+
+    # Top fields
+    lines.append("")
+    lines.append("=== TOP SÂN (doanh thu) ===")
+    if "field_name" in df.columns and "revenue" in df.columns:
+        f = (
+            df.assign(revenue_num=pd.to_numeric(df["revenue"], errors="coerce").fillna(0.0))
+            .groupby("field_name", dropna=False)["revenue_num"]
+            .sum()
+            .sort_values(ascending=False)
+            .head(8)
+        )
+        for k, v in f.items():
+            lines.append(f"- {k}: {_fmt_money(v)}")
+    else:
+        lines.append("- (Không đủ cột field_name/revenue)")
+
+    # Data dictionary snapshot (for user questions)
+    lines.append("")
+    lines.append("=== MẪU DÒNG DỮ LIỆU (5 dòng đầu) ===")
+    sample = _safe_head_table(
+        df,
+        cols=[
+            "booking_date",
+            "year_month",
+            "field_name",
+            service_col or "",
+            "time_slot",
+            "revenue",
+            "discount",
+            "due",
+            "payment_method",
+            "booking_status",
+        ],
+        n=5,
+    )
+    if not sample.empty:
+        lines.append(sample.to_csv(index=False))
+    else:
+        lines.append("(Không có)")
+
+    return "\n".join(lines)
+
+
+def context_hash(context: str) -> str:
+    return hashlib.md5(context.encode("utf-8")).hexdigest()  # noqa: S324
+
+
+@dataclass
+class GeminiConfig:
+    api_key: str
+    model: str | None = None
+
+
+def _get_gemini_config() -> GeminiConfig | None:
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        try:
+            import streamlit as st  # type: ignore
+
+            api_key = str(st.secrets.get("GEMINI_API_KEY", "")).strip()
+        except Exception:  # noqa: BLE001
+            api_key = ""
+    if not api_key:
+        return None
+    model = os.getenv("GEMINI_MODEL", "").strip() or None
+    if model is None:
+        try:
+            import streamlit as st  # type: ignore
+
+            model = str(st.secrets.get("GEMINI_MODEL", "")).strip() or None
+        except Exception:  # noqa: BLE001
+            model = None
+    return GeminiConfig(api_key=api_key, model=model)
+
+
+def _model_candidates(preferred: str | None) -> list[str]:
+    base = [m for m in [preferred, "gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"] if m]
+    # keep unique in order
+    out: list[str] = []
+    for m in base:
+        if m not in out:
+            out.append(m)
+    return out
+
+
+def reset_model() -> None:
+    # Compatibility no-op (streamlit session state manages history)
+    return None
+
+
+def chat_once(system_context: str, user_question: str) -> str:
+    """
+    Sends one question with a system context. Keeps the answer short & grounded.
+    Raises RuntimeError if Gemini is unavailable.
+    """
+    cfg = _get_gemini_config()
+    if cfg is None:
+        raise RuntimeError("Missing GEMINI_API_KEY")
+
+    try:
+        import google.generativeai as genai  # type: ignore
+    except Exception as e:  # noqa: BLE001
+        raise RuntimeError("google-generativeai not installed") from e
+
+    genai.configure(api_key=cfg.api_key)
+
+    system_instruction = (
+        "Bạn là trợ lý phân tích dữ liệu cho sân bóng King Arena. "
+        "Trả lời ngắn gọn bằng tiếng Việt, dựa trên số liệu trong ngữ cảnh. "
+        "Nếu không đủ dữ liệu trong ngữ cảnh để kết luận, hãy nói rõ và đề xuất cách kiểm tra."
+    )
+
+    last_err: Exception | None = None
+    for model_name in _model_candidates(cfg.model):
+        try:
+            model = genai.GenerativeModel(model_name=model_name, system_instruction=system_instruction)
+            resp = model.generate_content([f"NGỮ CẢNH:\n{system_context}\n\nCÂU HỎI:\n{user_question}"])
+            text = getattr(resp, "text", None) or ""
+            text = text.strip()
+            if not text:
+                raise RuntimeError("Empty response")
+            return text
+        except Exception as e:  # noqa: BLE001
+            last_err = e
+            continue
+
+    raise RuntimeError("Gemini call failed") from last_err
+
