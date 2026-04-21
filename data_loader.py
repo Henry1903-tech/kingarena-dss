@@ -185,8 +185,11 @@ def _derive_finance(df: pd.DataFrame) -> pd.DataFrame:
         else:
             df["profit"] = np.nan
 
-    df["has_discount"] = df.get("discount", 0.0).fillna(0.0) > 0
-    df["has_due"] = df.get("due", 0.0).fillna(0.0) > 0
+    # df.get(col, 0.0) may return a float -> always normalize to a Series
+    discount_s = df["discount"] if "discount" in df.columns else pd.Series(0.0, index=df.index)
+    due_s = df["due"] if "due" in df.columns else pd.Series(0.0, index=df.index)
+    df["has_discount"] = pd.to_numeric(discount_s, errors="coerce").fillna(0.0) > 0
+    df["has_due"] = pd.to_numeric(due_s, errors="coerce").fillna(0.0) > 0
     return df
 
 
