@@ -236,7 +236,18 @@ def _get_gemini_config() -> GeminiConfig | None:
 
 
 def _model_candidates(preferred: str | None) -> list[str]:
-    base = [m for m in [preferred, "gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"] if m]
+    # Keep a small, robust fallback list (Google sometimes changes model names).
+    base = [
+        m
+        for m in [
+            preferred,
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-2.5-flash",
+            "gemini-1.5-flash",
+        ]
+        if m
+    ]
     # keep unique in order
     out: list[str] = []
     for m in base:
@@ -272,8 +283,10 @@ def chat_once(system_context: str, user_question: str) -> str:
         "Nếu không đủ dữ liệu trong ngữ cảnh để kết luận, hãy nói rõ và đề xuất cách kiểm tra."
     )
 
-    last_err: Exception | None = None
+    errors: list[str] = []
+    tried: list[str] = []
     for model_name in _model_candidates(cfg.model):
+        tried.append(model_name)
         try:
             model = genai.GenerativeModel(model_name=model_name, system_instruction=system_instruction)
             resp = model.generate_content([f"NGỮ CẢNH:\n{system_context}\n\nCÂU HỎI:\n{user_question}"])
@@ -283,8 +296,13 @@ def chat_once(system_context: str, user_question: str) -> str:
                 raise RuntimeError("Empty response")
             return text
         except Exception as e:  # noqa: BLE001
-            last_err = e
+            errors.append(f"- {model_name}: {type(e).__name__}: {e}")
             continue
 
-    raise RuntimeError("Gemini call failed") from last_err
+    detail = "\n".join(errors[-6:]) if errors else "(không có chi tiết lỗi)"
+    raise RuntimeError(
+        "Gemini call failed. Nguyên nhân thường gặp: thiếu/sai `GEMINI_API_KEY`, hết quota, model không tồn tại (404), hoặc bị chặn quyền (403).\n\n"
+        f"Models đã thử: {', '.join(tried) if tried else '(none)'}\n"
+        f"Lỗi chi tiết:\n{detail}"
+    )
 
